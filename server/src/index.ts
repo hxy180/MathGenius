@@ -7,6 +7,7 @@ import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import OpenAI from 'openai';
+import authRouter from './auth';
 
 dotenv.config();
 
@@ -24,9 +25,12 @@ const openai = new OpenAI({
 app.use(cors({
   origin: 'http://localhost:3000',
   methods: ['GET', 'POST'],
-  allowedHeaders: ['Content-Type']
+  allowedHeaders: ['Content-Type', 'Authorization']
 }));
 app.use(express.json());
+
+// 集成认证路由
+app.use('/api/auth', authRouter);
 
 // 统一的错误响应格式
 const sendErrorResponse = (res: express.Response, status: number, message: string) => {

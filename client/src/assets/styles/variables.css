@@ -1,0 +1,10 @@
+:root {
+  --bg-color: #1a1a1a;
+  --card-bg-color: #2d2d2d;
+  --text-color: #ffffff;
+  --primary-color: #4a90e2;
+  --border-color: #404040;
+  --input-bg-color: #363636;
+  --disabled-color: #666666;
+  --error-color: #ff4d4f;
+}
