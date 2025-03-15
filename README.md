@@ -1,9 +1,191 @@
-# MathGenius 数学问题解答系统
+# MathGenius | 数学问题解答系统
+
+<div align="center">
+  
+[![English](https://img.shields.io/badge/lang-English-blue.svg)](README.md#mathgenius) | [![中文](https://img.shields.io/badge/语言-中文-red.svg)](README.md#mathgenius-数学问题解答系统)
+
+</div>
+
+---
+
+# MathGenius
 
 <!--
  * @author xyhou
  * @date 2025.2
 -->
+
+## Project Overview
+
+MathGenius is an intelligent mathematical problem-solving system designed to help users solve various mathematical problems. The system features a modern web interface design, providing an intuitive interactive experience, capable of handling various types of problems from basic mathematics to advanced mathematics, and provides detailed solution steps.
+
+## Features
+
+- 🧮 **Intelligent Math Problem Solving**: Supports various types of mathematical problems, from basic operations to complex mathematical derivations
+- 📝 **Detailed Solution Steps**: Provides clear problem-solving approaches and calculation processes
+- 🎯 **Real-time Formula Rendering**: Uses MathJax for elegant mathematical formula display
+- 💾 **History Function**: Automatically saves conversation history for easy access and continuation of previous questions
+- 🌓 **Dark Theme**: Features an eye-friendly dark theme design for comfortable usage
+- 📱 **Responsive Design**: Perfect adaptation to various device screens
+- 🌊 **Streaming Output**: Real-time streaming display of model responses for better user experience
+
+## Directory Structure
+
+```
+Mathgenius2/
+├── client/                 # Frontend project directory
+│   ├── src/               # Source code directory
+│   │   ├── assets/       # Static resources
+│   │   ├── components/   # Vue components
+│   │   ├── App.vue       # Main application component
+│   │   ├── main.ts       # Entry file
+│   │   └── style.css     # Global styles
+│   ├── index.html        # HTML template
+│   ├── package.json      # Project configuration and dependencies
+│   ├── tsconfig.json     # TypeScript configuration
+│   └── vite.config.ts    # Vite configuration
+├── server/                # Backend project directory
+│   ├── src/              # Source code directory
+│   │   └── index.ts      # Server entry file
+│   ├── .env              # Environment variables configuration
+│   ├── package.json      # Project configuration and dependencies
+│   └── tsconfig.json     # TypeScript configuration
+└── README.md             # Project documentation
+```
+
+## Technology Stack
+
+### Frontend
+- Vue 3 (^3.3.0) - Progressive JavaScript Framework
+- TypeScript (^5.0.0) - Type-safe JavaScript superset
+- Vite (^4.0.0) - Next generation frontend build tool
+- MathJax (^3.2.0) - Professional mathematical formula rendering engine
+- Marked (^5.0.0) - Efficient Markdown parser
+- Font Awesome (^6.0.0) - Rich icon library
+- EventSource API - For implementing server-sent events (SSE) streaming output
+
+### Backend
+- Node.js (>=16.0.0) - JavaScript runtime environment
+- TypeScript (^5.0.0) - Type-safe development experience
+- Express.js (^4.18.0) - Fast, flexible web framework
+- OpenAI API - For interacting with DeepSeek model, supporting streaming output
+
+## Requirements
+
+- Node.js >= 16.0.0
+- npm >= 8.0.0
+- Modern browsers (supporting ES6+ and EventSource API)
+
+## Installation Steps
+
+1. Clone the project
+```bash
+git clone [project URL]
+cd Mathgenius2
+```
+
+2. Install frontend dependencies
+```bash
+cd client
+npm install
+```
+
+3. Install backend dependencies
+```bash
+cd ../server
+npm install
+```
+
+4. Configure environment variables
+- Create .env file in the server directory
+- Add the following necessary environment variables:
+  ```
+  PORT=3001              # Backend server port
+  NODE_ENV=development   # Running environment
+  API_KEY=your_api_key   # API key (if needed)
+  ```
+
+5. Start the project
+
+Frontend development server:
+```bash
+cd client
+npm run dev
+```
+
+Backend server:
+```bash
+cd server
+npm run dev
+```
+
+## Usage Instructions
+
+1. Access the System
+   - After starting the project, open your browser and visit `http://localhost:3000`
+   - The system will display a welcome interface introducing the main features
+
+2. Asking Questions
+   - Enter your mathematical question in the input box
+   - Supports mathematical formulas using `$` for inline formulas and `$$` for block formulas
+   - Press Enter or click the send button to submit the question
+   - Model responses will be displayed in real-time streaming, no need to wait for complete answers
+
+3. View History
+   - Historical conversations are displayed in the left sidebar
+   - Click any historical record to view the complete conversation
+   - Use the clear button at the top to clear history
+
+4. Continue Conversation
+   - Continue asking related questions in the current conversation
+   - The system maintains context understanding, providing coherent answers
+
+## Development Guidelines
+
+- Frontend development follows Vue 3 Composition API best practices
+- Uses TypeScript to ensure code type safety
+- Adopts modular design for easy extension and maintenance
+- Follows ESLint specifications for consistent code style
+- Uses EventSource API to implement server-sent events (SSE) streaming output
+- Backend uses OpenAI API's streaming output feature for real-time answer display
+
+## Streaming Output Implementation
+
+The system uses Server-Sent Events (SSE) technology to implement streaming output of model responses:
+
+1. Backend Implementation:
+   - Uses OpenAI API's streaming output feature
+   - Sets appropriate response headers to support SSE
+   - Sends model-generated content chunks to the frontend in real-time
+
+2. Frontend Implementation:
+   - Uses EventSource API to establish connection with the server
+   - Receives and processes server-sent events in real-time
+   - Dynamically updates interface to display model responses
+   - Supports real-time rendering of mathematical formulas
+
+3. Advantages:
+   - Provides better user experience, no need to wait for complete answers
+   - Reduces user waiting time, improves interaction efficiency
+   - Supports smooth display of long answers
+
+## Contributing Guidelines
+
+Contributions, issues, and feature requests are welcome. Please follow these steps:
+
+1. Fork the project
+2. Create your feature branch (`git checkout -b feature/AmazingFeature`)
+3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
+4. Push to the branch (`git push origin feature/AmazingFeature`)
+5. Open a Pull Request
+
+## License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details
+
+---
+
+# MathGenius 数学问题解答系统
 
 ## 项目简介
 

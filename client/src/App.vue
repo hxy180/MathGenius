@@ -50,9 +50,6 @@ const isStreaming = ref(false);
 const streamedAnswer = ref('');
 // 添加按钮显示控制状态
 const showActionButtons = ref(false);
-// 添加滚动按钮控制状态
-const showScrollButton = ref(false);
-// 移除未使用的变量
 
 onMounted(() => {
   // 配置 MathJax，优化数学公式渲染
@@ -147,15 +144,7 @@ onMounted(() => {
     setupMathJaxObserver();
   }, 1000);
 
-  // 监听滚动事件
-  const chatMessages = document.querySelector('.chat-messages');
-  if (chatMessages) {
-    chatMessages.addEventListener('scroll', () => {
-      const { scrollTop, scrollHeight, clientHeight } = chatMessages as HTMLElement;
-      // 如果距离底部超过200px，显示滚动按钮
-      showScrollButton.value = scrollHeight - scrollTop - clientHeight > 200;
-    });
-  }
+  // 不再需要监听滚动事件，因为我们已经删除了滚动到底部按钮
 })
 
 // 设置MathJax自动渲染观察器
@@ -304,7 +293,7 @@ const handleSubmit = async () => {
     streamedAnswer.value = '';
 
     // 使用流式API，确保连接到正确的服务器端口
-    const serverUrl = 'http://localhost:3001'; // 服务器地址固定为3001
+    const serverUrl = 'http://localhost:3001'; // 服务器地址
     const eventSource = new EventSource(`${serverUrl}/api/solve/stream?question=${encodeURIComponent(question.value)}`);
     
     // 处理流式事件
@@ -512,7 +501,7 @@ const clearQuestion = () => {
   question.value = '';
   answer.value = '';
   
-  // 隐藏操作按钮
+  // 立即隐藏操作按钮
   showActionButtons.value = false;
   
   // 只在当前对话中添加提示语
@@ -526,7 +515,7 @@ const clearQuestion = () => {
 
   // 滚动到底部
   setTimeout(() => {
-    const chatMessages = document.querySelector('.chat-messages');
+    const chatMessages = document.querySelector('.conversation-container');
     if (chatMessages) {
       chatMessages.scrollTo({
         top: chatMessages.scrollHeight,
@@ -538,7 +527,7 @@ const clearQuestion = () => {
 
 // 添加滚动到底部的函数
 const scrollToBottom = () => {
-  const chatMessages = document.querySelector('.chat-messages');
+  const chatMessages = document.querySelector('.conversation-container');
   if (chatMessages) {
     chatMessages.scrollTo({
       top: chatMessages.scrollHeight,
@@ -589,42 +578,38 @@ const scrollToBottom = () => {
               <p class="welcome-hint">请在下方输入您的数学问题，我会立即为您解答。</p>
             </div>
           </div>
-          <template v-for="qa in currentQA" :key="qa.question">
-            <div class="answer-section">
-              <div class="message user-message" v-if="qa.question">
-                <div class="avatar user-avatar">
-                  <i class="fas fa-user"></i>
+          <div class="conversation-container">
+            <template v-for="qa in currentQA" :key="qa.question">
+              <div class="answer-section">
+                <div class="message user-message" v-if="qa.question">
+                  <div class="avatar user-avatar">
+                    <i class="fas fa-user"></i>
+                  </div>
+                  <div class="message-content math-tex">{{ qa.question }}</div>
                 </div>
-                <div class="message-content math-tex">{{ qa.question }}</div>
-              </div>
-              <div class="message bot-message">
-                <div class="avatar bot-avatar">
-                  <i class="fas fa-robot"></i>
+                <div class="message bot-message">
+                  <div class="avatar bot-avatar">
+                    <i class="fas fa-robot"></i>
+                  </div>
+                  <div class="message-content math-tex" v-html="qa.answer"></div>
                 </div>
-                <div class="message-content math-tex" v-html="qa.answer"></div>
               </div>
+            </template>
+            
+            <!-- 操作按钮区域 - 放在回答下方 -->
+            <div class="action-buttons" v-if="currentQA.length > 0 && showActionButtons && !isStreaming">
+              <button class="continue-button" @click="clearQuestion">
+                <i class="fas fa-redo"></i>
+                <span>继续提问</span>
+              </button>
+              <button class="solved-button" @click="clearChat">
+                <i class="fas fa-check"></i>
+                <span>已解决</span>
+              </button>
             </div>
-          </template>
-          <div class="action-buttons" v-if="currentQA.length > 0 && showActionButtons && !isStreaming">
-            <button class="continue-button" @click="clearQuestion">
-              <i class="fas fa-redo"></i>
-              <span>继续提问</span>
-            </button>
-            <button class="solved-button" @click="clearChat">
-              <i class="fas fa-check"></i>
-              <span>已解决</span>
-            </button>
           </div>
           
-          <!-- 滚动到底部按钮 -->
-          <button 
-            v-if="showScrollButton" 
-            class="scroll-to-bottom-button" 
-            @click="scrollToBottom"
-            title="滚动到底部"
-          >
-            <i class="fas fa-arrow-down"></i>
-          </button>
+          <!-- 删除滚动到底部按钮 -->
         </div>
 
         <div class="input-section">
@@ -652,6 +637,67 @@ const scrollToBottom = () => {
 </style>
 
 <style scoped>
+/* 应用容器样式 */
+.app-container {
+  height: 100vh;
+  width: 100vw;
+  overflow: hidden;
+  position: fixed;
+  top: 0;
+  left: 0;
+  display: flex;
+}
+
+/* 主内容区域样式 */
+.main-content {
+  margin-left: 5px;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background-color: #121212;
+  overflow: hidden;
+  padding: 1rem 0;
+  flex: 1;
+}
+
+/* 聊天容器样式 */
+.chat-container {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  width: 100%;
+  position: relative;
+  padding-left: 0.125rem;
+  overflow: hidden;
+}
+
+/* 对话区域固定大小 */
+.chat-messages {
+  flex: 1;
+  overflow: hidden;
+  padding: 1rem;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  width: 1100px;
+  background-color: #1a1a1a;
+  border-radius: 0;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+  min-height: 0;
+}
+
+/* 对话内容容器 */
+.conversation-container {
+  flex: 1;
+  overflow-y: auto;
+  padding-bottom: 20px;
+  width: 100%;
+  min-height: 0;
+  max-height: calc(100vh - 200px);
+}
+
 /* 公式显示优化 */
 .math-tex {
   font-size: 1.1em;
@@ -659,6 +705,106 @@ const scrollToBottom = () => {
   color: #e0e0e0;
   overflow-x: auto;
   font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+}
+
+/* 聊天头部样式 */
+.chat-header {
+  width: 1100px;
+  background-color: #2d2d30;
+  padding: 1rem;
+  text-align: center;
+  border-radius: 12px 12px 0 0;
+  margin: 0;
+  flex-shrink: 0;
+}
+
+/* 消息内容样式优化 */
+.message-content {
+  max-width: 85%;
+  padding: 1rem 1.5rem;
+  border-radius: 12px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+  margin: 0.5rem 0;
+  word-wrap: break-word; /* 确保长文本换行 */
+  overflow-wrap: break-word;
+}
+
+/* 输入区域固定在底部 */
+.input-section {
+  display: flex;
+  padding: 1rem;
+  background-color: #1a1a1a;
+  border: 1px solid #333;
+  border-radius: 0 0 12px 12px;
+  position: relative;
+  z-index: 20;
+  width: 1100px;
+  margin: 0;
+  flex-shrink: 0;
+  height: 100px;
+}
+
+/* 操作按钮样式 - 修改为非固定位置 */
+.action-buttons {
+  display: flex;
+  gap: 10px;
+  background-color: rgba(30, 30, 30, 0.8);
+  padding: 12px 18px;
+  border-radius: 12px;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+  margin: 20px auto 10px auto; /* 上下边距，水平居中 */
+  width: fit-content; /* 根据内容调整宽度 */
+  transition: all 0.3s ease;
+}
+
+/* 继续提问按钮 */
+.continue-button {
+  background: linear-gradient(135deg, #4a90e2 0%, #357abd 100%);
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+}
+
+.continue-button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+}
+
+.continue-button i {
+  font-size: 0.9rem;
+}
+
+/* 已解决按钮 */
+.solved-button {
+  background: linear-gradient(135deg, #28a745 0%, #1e7e34 100%);
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+}
+
+.solved-button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+}
+
+.solved-button i {
+  font-size: 0.9rem;
 }
 
 /* 消息样式 */
@@ -713,6 +859,7 @@ mjx-container[jax="SVG"][display="block"] {
   text-align: center;
   width: 100%;
 }
+
 .avatar {
   width: 55px;
   height: 55px;
@@ -746,44 +893,7 @@ mjx-container[jax="SVG"][display="block"] {
   box-shadow: 0 5px 15px rgba(0, 0, 0, 0.25);
 }
 
-/* 滚动到底部按钮样式 */
-.scroll-to-bottom-button {
-  position: fixed;
-  bottom: 120px;
-  right: 30px;
-  width: 50px;
-  height: 50px;
-  border-radius: 50%;
-  background-color: rgba(40, 167, 69, 0.8);
-  color: white;
-  border: none;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  z-index: 100;
-  transition: all 0.3s ease;
-}
-
-.scroll-to-bottom-button:hover {
-  background-color: rgba(40, 167, 69, 1);
-  transform: scale(1.1);
-}
-
-.scroll-to-bottom-button i {
-  font-size: 1.5rem;
-}
-
 /* 优化输入框样式 */
-.input-section {
-  display: flex;
-  padding: 1rem;
-  background-color: #1a1a1a;
-  border-top: 1px solid #333;
-  position: relative;
-}
-
 .input-section textarea {
   flex: 1;
   padding: 1rem;
@@ -851,5 +961,59 @@ mjx-container[jax="SVG"][display="block"] {
 
 .input-section textarea::-webkit-scrollbar-thumb:hover {
   background: #666;
+}
+
+/* 欢迎消息样式 - 确保与其他对话一致 */
+.welcome-message {
+  display: flex;
+  justify-content: center;
+  padding: 2rem 0;
+  width: 100%;
+}
+
+.welcome-content {
+  max-width: 85%;
+  text-align: center;
+}
+
+.welcome-hint {
+  margin-top: 1.5rem;
+  font-style: italic;
+  opacity: 0.9;
+}
+
+/* 响应式调整 */
+@media (max-width: 1600px) {
+  .chat-messages,
+  .chat-header,
+  .input-section {
+    width: calc(100% - 0.25rem);
+    max-width: 1100px;
+  }
+  
+  .conversation-container {
+    max-height: calc(100vh - 180px);
+  }
+}
+
+/* 删除不再需要的样式 */
+.action-buttons-container {
+  display: none;
+}
+
+.scroll-to-bottom-button {
+  display: none;
+}
+
+/* 修复对话区域中的消息布局 */
+.answer-section {
+  width: 100%;
+  margin-bottom: 20px;
+}
+
+/* 确保对话区域在新对话和已有对话中保持一致的大小 */
+.welcome-message .welcome-content {
+  max-width: 85%;
+  margin: 0 auto;
 }
 </style>

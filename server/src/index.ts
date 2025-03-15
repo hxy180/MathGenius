@@ -135,7 +135,7 @@ app.get('/api/solve/stream', async (req, res) => {
     res.setHeader('Content-Type', 'text/event-stream');
     res.setHeader('Cache-Control', 'no-cache');
     res.setHeader('Connection', 'keep-alive');
-    res.setHeader('Access-Control-Allow-Origin', 'http://localhost:3000');  // 明确允许端口3000
+    res.setHeader('Access-Control-Allow-Origin', '*');  // 允许所有来源
 
     // 发送初始消息
     res.write('data: {"status": "start"}\n\n');
