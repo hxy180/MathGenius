@@ -45,24 +45,68 @@ const loading = ref(false)
 const history = ref<Array<{ question: string; answer: string; qaHistory: Array<{ question: string; answer: string }> }>>([]);
 const currentQA = ref<Array<{ question: string; answer: string; originalQuestion?: string }>>([]);
 const selectedHistoryIndex = ref<number>(-1);
+// 添加流式响应相关的状态
+const isStreaming = ref(false);
+const streamedAnswer = ref('');
+// 添加按钮显示控制状态
+const showActionButtons = ref(false);
+// 添加滚动按钮控制状态
+const showScrollButton = ref(false);
 // 移除未使用的变量
 
 onMounted(() => {
   // 配置 MathJax，优化数学公式渲染
   (window as any).MathJax = {
     loader: {
-      load: ['[tex]/ams', '[tex]/newcommand', '[tex]/html']
+      load: ['[tex]/ams', '[tex]/newcommand', '[tex]/html', '[tex]/noerrors', '[tex]/noundefined', '[tex]/configmacros', '[tex]/tagformat', '[tex]/color', '[tex]/colortbl', '[tex]/bbox']
     },
     tex: {
-      inlineMath: [['$', '$']],
-      displayMath: [['$$', '$$']],
+      inlineMath: [['$', '$'], ['\\(', '\\)']],
+      displayMath: [['$$', '$$'], ['\\[', '\\]']],
       processEscapes: true,
-      packages: {'[+]': ['ams', 'newcommand', 'html']},
+      processEnvironments: true,
+      packages: {'[+]': ['ams', 'newcommand', 'html', 'noerrors', 'noundefined', 'configmacros', 'tagformat', 'color', 'colortbl', 'bbox']},
       tags: 'ams',
       macros: {
+        // 基础符号
         R: '\\mathbb{R}',
         N: '\\mathbb{N}',
-        Z: '\\mathbb{Z}'
+        Z: '\\mathbb{Z}',
+        Q: '\\mathbb{Q}',
+        C: '\\mathbb{C}',
+        // 运算符
+        sum: '\\sum',
+        max: '\\max',
+        min: '\\min',
+        frac: '\\frac',
+        dots: '\\dots',
+        ldots: '\\ldots',
+        cdots: '\\cdots',
+        vdots: '\\vdots',
+        ddots: '\\ddots',
+        // 关系符号
+        equiv: '\\equiv',
+        mid: '\\mid',
+        parallel: '\\parallel',
+        nparallel: '\\nparallel',
+        // 模运算
+        mod: '\\mod',
+        pmod: '\\pmod',
+        // 集合符号
+        emptyset: '\\emptyset',
+        varnothing: '\\varnothing',
+        // 逻辑符号
+        implies: '\\Rightarrow',
+        iff: '\\Leftrightarrow',
+        exists: '\\exists',
+        forall: '\\forall',
+        // 其他常用符号
+        infty: '\\infty',
+        nabla: '\\nabla',
+        partial: '\\partial',
+        // 向量符号
+        vec: '\\vec',
+        overrightarrow: '\\overrightarrow'
       },
       formatError: (jax: any, err: any) => {
         return jax.formatError(err);
@@ -97,7 +141,111 @@ onMounted(() => {
   if (savedHistory) {
     history.value = JSON.parse(savedHistory)
   }
+
+  // 添加MathJax自动渲染观察器
+  setTimeout(() => {
+    setupMathJaxObserver();
+  }, 1000);
+
+  // 监听滚动事件
+  const chatMessages = document.querySelector('.chat-messages');
+  if (chatMessages) {
+    chatMessages.addEventListener('scroll', () => {
+      const { scrollTop, scrollHeight, clientHeight } = chatMessages as HTMLElement;
+      // 如果距离底部超过200px，显示滚动按钮
+      showScrollButton.value = scrollHeight - scrollTop - clientHeight > 200;
+    });
+  }
 })
+
+// 设置MathJax自动渲染观察器
+const setupMathJaxObserver = () => {
+  if (!(window as any).MathJax) {
+    console.error('MathJax not loaded');
+    return;
+  }
+
+  let timeout: number | null = null;
+  const delay = 500;
+
+  const observer = new MutationObserver(() => {
+    if (timeout) {
+      clearTimeout(timeout);
+    }
+    timeout = window.setTimeout(() => {
+      try {
+        (window as any).MathJax.typeset();
+      } catch (err) {
+        console.error('MathJax typeset error:', err);
+      }
+    }, delay);
+  });
+
+  observer.observe(document.body, { childList: true, subtree: true });
+  console.log('MathJax observer setup complete');
+};
+
+// 预处理LaTeX公式
+const preprocessLatex = (text: string): string => {
+  if (!text) return '';
+  
+  return text
+    // 修复常见的LaTeX命令
+    .replace(/\\sum_\{([^}]+)\}\^\{([^}]+)\}/g, '\\sum_{$1}^{$2}')
+    .replace(/\\max\{([^}]+)\}/g, '\\max\\{$1\\}')
+    .replace(/\\min\{([^}]+)\}/g, '\\min\\{$1\\}')
+    .replace(/\\dots/g, '\\ldots')
+    .replace(/\\frac\{([^}]+)\}\{([^}]+)\}/g, '\\frac{$1}{$2}')
+    // 确保下标和上标正确
+    .replace(/_(\w+)(?![{])/g, '_{$1}')
+    .replace(/\^(\w+)(?![{])/g, '^{$1}')
+    // 处理其他常见问题
+    .replace(/\\geq/g, '\\geq ')
+    .replace(/\\leq/g, '\\leq ')
+    .replace(/\\neq/g, '\\neq ')
+    .replace(/\\cdot/g, '\\cdot ')
+    .replace(/\\pm/g, '\\pm ')
+    .replace(/\\Rightarrow/g, '\\Rightarrow ')
+    // 添加更多LaTeX符号处理
+    .replace(/\\mid/g, '\\mid ')
+    .replace(/\\equiv/g, '\\equiv ')
+    .replace(/\\mod/g, '\\mod ')
+    .replace(/\\pmod/g, '\\pmod ')
+    .replace(/od\{([^}]+)\}/g, '\\pmod{$1}')
+    .replace(/\\ldots/g, '\\ldots ')
+    .replace(/\\cdots/g, '\\cdots ')
+    .replace(/\\vdots/g, '\\vdots ')
+    .replace(/\\ddots/g, '\\ddots ')
+    // 集合符号
+    .replace(/\\emptyset/g, '\\emptyset ')
+    .replace(/\\in/g, '\\in ')
+    .replace(/\\notin/g, '\\notin ')
+    .replace(/\\subset/g, '\\subset ')
+    .replace(/\\subseteq/g, '\\subseteq ')
+    .replace(/\\supset/g, '\\supset ')
+    .replace(/\\supseteq/g, '\\supseteq ')
+    .replace(/\\cup/g, '\\cup ')
+    .replace(/\\cap/g, '\\cap ')
+    .replace(/\\setminus/g, '\\setminus ')
+    // 逻辑符号
+    .replace(/\\forall/g, '\\forall ')
+    .replace(/\\exists/g, '\\exists ')
+    .replace(/\\neg/g, '\\neg ')
+    .replace(/\\lor/g, '\\lor ')
+    .replace(/\\land/g, '\\land ')
+    .replace(/\\Rightarrow/g, '\\Rightarrow ')
+    .replace(/\\Leftarrow/g, '\\Leftarrow ')
+    .replace(/\\Leftrightarrow/g, '\\Leftrightarrow ')
+    // 括号处理
+    .replace(/\\left\(/g, '\\left( ')
+    .replace(/\\right\)/g, '\\right) ')
+    .replace(/\\left\[/g, '\\left[ ')
+    .replace(/\\right\]/g, '\\right] ')
+    .replace(/\\left\\{/g, '\\left\\{ ')
+    .replace(/\\right\\}/g, '\\right\\} ')
+    // 修复常见错误格式
+    .replace(/\{([^{}]*),\s*([^{}]*),\s*\\ldots,\s*([^{}]*)\}/g, '\\{$1, $2, \\ldots, $3\\}');
+};
 
 // 在 handleSubmit 函数中添加滚动逻辑
 // 修改 handleSubmit 函数，添加清空输入框的逻辑
@@ -110,6 +258,9 @@ const handleSubmit = async () => {
   try {
     loading.value = true;
     displayQuestion.value = question.value;
+
+    // 隐藏操作按钮，因为开始新的提问
+    showActionButtons.value = false;
 
     // 在发送请求前添加到历史记录
     const originalQuestion = currentQA.value.length > 0 ? currentQA.value[0].originalQuestion || currentQA.value[0].question : question.value;
@@ -141,100 +292,138 @@ const handleSubmit = async () => {
       originalQuestion: originalQuestion
     };
 
-    const response = await fetch('http://localhost:3001/api/solve', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify(requestBody)
-    });
-
-    let data;
-    try {
-      const textResponse = await response.text();
-      data = JSON.parse(textResponse);
-    } catch (parseError) {
-      console.error('JSON Parse Error:', parseError);
-      throw new Error('服务器返回的数据格式不正确');
-    }
-
-    if (!response.ok) {
-      throw new Error(data?.error || '网络请求失败，请检查服务器连接');
-    }
-    
-    if (!data) {
-      throw new Error('服务器返回空响应');
-    }
-
-    if (data.error) {
-      throw new Error(data.error);
-    }
-
-    if (!data.answer) {
-      throw new Error('服务器返回的数据缺少答案字段');
-    }
-
-    const markedContent = marked(data.answer, {
-      breaks: true,
-      // sanitize: true,  // 启用 sanitize 以防止 XSS 攻击
-      // headerIds: false,
-      gfm: true,       // 启用 GitHub Flavored Markdown
-      pedantic: false, // 不要过于严格的解析
-      // mangle: false    // 防止修改数学公式中的特殊字符
-    });
-    
-    // 保留数学公式的格式，仅移除多余的空格和不必要的符号
-    answer.value = markedContent.toString()
-      .replace(/\\\[(.*?)\\\]/g, (_, p1) => `$$${p1.trim()}$$`)
-      .replace(/\\\((.*?)\\\)/g, (_, p1) => `$${p1.trim()}$`)
-      .replace(/\\quad/g, ' ')
-      .replace(/\\text\{([^}]+)\}/g, '$1')
-      .replace(/\\times/g, '×')
-      .replace(/\\cdots/g, '...')
-      .replace(/\\boxed\{([^}]+)\}/g, '$1')
-      .replace(/\\neq/g, '≠')
-      .replace(/\\cdot/g, '·')
-      .replace(/\\pm/g, '±')
-      .replace(/\\Rightarrow/g, '⇒')
-      .replace(/\\frac\{([^}]+)\}\{([^}]+)\}/g, '($1)/($2)')
-      .replace(/\\sqrt\{([^}]+)\}/g, '√($1)')
-      .replace(/\(([^)]+)\)/g, '$1')
-      .replace(/\[([^\]]+)\]/g, '$1')
-      .trim();
-
+    // 添加当前问题到对话历史
     currentQA.value.push({
       question: displayQuestion.value,
-      answer: answer.value,
+      answer: '正在思考...',
       originalQuestion: currentQA.value.length > 0 ? currentQA.value[0].originalQuestion || currentQA.value[0].question : question.value
     });
 
-    // 更新历史记录中的答案
-    if (existingIndex >= 0) {
-      history.value[existingIndex].answer = answer.value;
-      history.value[existingIndex].qaHistory[history.value[existingIndex].qaHistory.length - 1].answer = answer.value;
-    } else {
-      history.value[0].answer = answer.value;
-      history.value[0].qaHistory[history.value[0].qaHistory.length - 1].answer = answer.value;
-    }
-    
-    localStorage.setItem('mathHistory', JSON.stringify(history.value));
-    question.value = '';
-    
-    // 优化后的渲染逻辑
-await nextTick();
-    if ((window as any).MathJax) {
-      await (window as any).MathJax.typesetPromise();
-      console.log('公式重新渲染完成');
+    // 重置流式响应状态
+    isStreaming.value = true;
+    streamedAnswer.value = '';
 
-      const chatMessages = document.querySelector('.chat-messages');
-      chatMessages?.scrollTo({
-        top: chatMessages.scrollHeight,
-        behavior: 'smooth'
-      });
-    }
+    // 使用流式API，确保连接到正确的服务器端口
+    const serverUrl = 'http://localhost:3001'; // 服务器地址固定为3001
+    const eventSource = new EventSource(`${serverUrl}/api/solve/stream?question=${encodeURIComponent(question.value)}`);
+    
+    // 处理流式事件
+    eventSource.onmessage = async (event) => {
+      try {
+        const data = JSON.parse(event.data);
+        
+        if (data.status === 'start') {
+          // 流开始
+          console.log('流式响应开始');
+        } else if (data.status === 'chunk') {
+          // 接收内容块
+          streamedAnswer.value += data.content;
+          
+          // 更新当前对话中的最后一个回答
+          if (currentQA.value.length > 0) {
+            const markedContent = marked(streamedAnswer.value, {
+              breaks: true,
+              gfm: true,
+              pedantic: false,
+            });
+            
+            // 预处理LaTeX公式，然后应用其他格式化
+            const formattedAnswer = preprocessLatex(markedContent.toString())
+              .replace(/\\\[(.*?)\\\]/g, (_, p1) => `$$${p1.trim()}$$`)
+              .replace(/\\\((.*?)\\\)/g, (_, p1) => `$${p1.trim()}$`)
+              .replace(/\\quad/g, ' ')
+              .replace(/\\text\{([^}]+)\}/g, '$1')
+              .replace(/\\times/g, '×')
+              .trim();
+            
+            currentQA.value[currentQA.value.length - 1].answer = formattedAnswer;
+            
+            // 更新历史记录
+            if (existingIndex >= 0) {
+              history.value[existingIndex].answer = formattedAnswer;
+              history.value[existingIndex].qaHistory[history.value[existingIndex].qaHistory.length - 1].answer = formattedAnswer;
+            } else {
+              history.value[0].answer = formattedAnswer;
+              history.value[0].qaHistory[history.value[0].qaHistory.length - 1].answer = formattedAnswer;
+            }
+            
+            // 不再自动滚动到底部，允许用户自由滚动
+            // 只在收到包含数学公式的内容时尝试渲染
+            const hasLatex = data.content && (
+              data.content.includes('$') || 
+              data.content.includes('\\') || 
+              /\\[a-zA-Z]+/.test(data.content)
+            );
+            
+            if (hasLatex) {
+              await nextTick();
+              if ((window as any).MathJax) {
+                try {
+                  await (window as any).MathJax.typesetPromise();
+                } catch (mathJaxError) {
+                  console.error('MathJax渲染错误:', mathJaxError);
+                }
+              }
+            }
+          }
+        } else if (data.status === 'done') {
+          // 流结束
+          console.log('流式响应完成');
+          eventSource.close();
+          isStreaming.value = false;
+          
+          // 显示操作按钮
+          showActionButtons.value = true;
+          
+          // 保存最终结果到localStorage
+          localStorage.setItem('mathHistory', JSON.stringify(history.value));
+          
+          // 在回答完成后，再次尝试渲染所有数学公式
+          await nextTick();
+          if ((window as any).MathJax) {
+            try {
+              // 强制重新渲染所有公式
+              document.querySelectorAll('.math-tex').forEach(el => {
+                el.setAttribute('data-needs-typeset', 'true');
+              });
+              
+              await (window as any).MathJax.typesetPromise();
+              console.log('最终数学公式渲染完成');
+            } catch (mathJaxError) {
+              console.error('最终MathJax渲染错误:', mathJaxError);
+            }
+          }
+        } else if (data.status === 'error') {
+          // 处理错误
+          console.error('流式响应错误:', data.error);
+          eventSource.close();
+          isStreaming.value = false;
+          
+          if (currentQA.value.length > 0) {
+            currentQA.value[currentQA.value.length - 1].answer = `错误：${data.error}`;
+          }
+        }
+      } catch (parseError) {
+        console.error('解析流式数据错误:', parseError);
+      }
+    };
+    
+    // 处理错误
+    eventSource.onerror = (error) => {
+      console.error('EventSource错误:', error);
+      eventSource.close();
+      isStreaming.value = false;
+      
+      if (currentQA.value.length > 0) {
+        currentQA.value[currentQA.value.length - 1].answer = '连接错误，请重试';
+      }
+    };
+    
+    question.value = '';
   } catch (error) {
     console.error('Error:', error);
     answer.value = `错误：${error instanceof Error ? error.message : '发生未知错误，请稍后重试。'}`;
+    isStreaming.value = false;
   } finally {
     loading.value = false;
   }
@@ -242,11 +431,22 @@ await nextTick();
 
 
 const clearHistory = () => {
+  // 完全清空历史记录
   history.value = []
   localStorage.removeItem('mathHistory')
+  
+  // 同时清空当前对话
+  currentQA.value = []
+  question.value = ''
+  answer.value = ''
+  selectedHistoryIndex.value = -1
+  showActionButtons.value = false
 }
 // 在 script 部分添加新的方法
 const clearChat = () => {
+  // 隐藏操作按钮
+  showActionButtons.value = false;
+  
   if (currentQA.value.length > 0) {
     const qaHistory = currentQA.value.map(qa => ({
       question: qa.question,
@@ -288,16 +488,32 @@ const loadHistoryItem = async (item: { question: string; answer: string; qaHisto
     originalQuestion: item.qaHistory[0].question
   }));
   
+  // 显示操作按钮，因为历史记录中的对话已经完成
+  showActionButtons.value = true;
+  isStreaming.value = false;
+  
   await nextTick();
   if ((window as any).MathJax) {
-    await (window as any).MathJax.typesetPromise();
-    console.log('历史记录公式渲染完成');
+    try {
+      // 强制重新渲染所有公式
+      document.querySelectorAll('.math-tex').forEach(el => {
+        el.setAttribute('data-needs-typeset', 'true');
+      });
+      
+      await (window as any).MathJax.typesetPromise();
+      console.log('历史记录公式渲染完成');
+    } catch (mathJaxError) {
+      console.error('历史记录MathJax渲染错误:', mathJaxError);
+    }
   }
 };
 
 const clearQuestion = () => {
   question.value = '';
   answer.value = '';
+  
+  // 隐藏操作按钮
+  showActionButtons.value = false;
   
   // 只在当前对话中添加提示语
   if (currentQA.value.length > 0) {
@@ -318,6 +534,17 @@ const clearQuestion = () => {
       });
     }
   }, 100);
+};
+
+// 添加滚动到底部的函数
+const scrollToBottom = () => {
+  const chatMessages = document.querySelector('.chat-messages');
+  if (chatMessages) {
+    chatMessages.scrollTo({
+      top: chatMessages.scrollHeight,
+      behavior: 'smooth'
+    });
+  }
 };
 </script>
 
@@ -378,7 +605,7 @@ const clearQuestion = () => {
               </div>
             </div>
           </template>
-          <div class="action-buttons" v-if="currentQA.length > 0">
+          <div class="action-buttons" v-if="currentQA.length > 0 && showActionButtons && !isStreaming">
             <button class="continue-button" @click="clearQuestion">
               <i class="fas fa-redo"></i>
               <span>继续提问</span>
@@ -388,6 +615,16 @@ const clearQuestion = () => {
               <span>已解决</span>
             </button>
           </div>
+          
+          <!-- 滚动到底部按钮 -->
+          <button 
+            v-if="showScrollButton" 
+            class="scroll-to-bottom-button" 
+            @click="scrollToBottom"
+            title="滚动到底部"
+          >
+            <i class="fas fa-arrow-down"></i>
+          </button>
         </div>
 
         <div class="input-section">
@@ -507,5 +744,112 @@ mjx-container[jax="SVG"][display="block"] {
 .avatar:hover {
   transform: scale(1.08);
   box-shadow: 0 5px 15px rgba(0, 0, 0, 0.25);
+}
+
+/* 滚动到底部按钮样式 */
+.scroll-to-bottom-button {
+  position: fixed;
+  bottom: 120px;
+  right: 30px;
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  background-color: rgba(40, 167, 69, 0.8);
+  color: white;
+  border: none;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  z-index: 100;
+  transition: all 0.3s ease;
+}
+
+.scroll-to-bottom-button:hover {
+  background-color: rgba(40, 167, 69, 1);
+  transform: scale(1.1);
+}
+
+.scroll-to-bottom-button i {
+  font-size: 1.5rem;
+}
+
+/* 优化输入框样式 */
+.input-section {
+  display: flex;
+  padding: 1rem;
+  background-color: #1a1a1a;
+  border-top: 1px solid #333;
+  position: relative;
+}
+
+.input-section textarea {
+  flex: 1;
+  padding: 1rem;
+  border-radius: 8px;
+  border: 1px solid #444;
+  background-color: #2a2a2a;
+  color: #fff;
+  font-size: 1rem;
+  resize: none;
+  outline: none;
+  transition: border-color 0.3s, box-shadow 0.3s;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+  line-height: 1.5;
+  overflow-y: auto;
+  max-height: 150px;
+}
+
+.input-section textarea:focus {
+  border-color: #4a90e2;
+  box-shadow: 0 0 0 2px rgba(74, 144, 226, 0.2);
+}
+
+.input-section button {
+  margin-left: 0.75rem;
+  padding: 0 1.5rem;
+  height: 100%;
+  border: none;
+  border-radius: 8px;
+  background: linear-gradient(135deg, #28a745 0%, #1e7e34 100%);
+  color: white;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 80px;
+}
+
+.input-section button:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+}
+
+.input-section button:disabled {
+  background: #555;
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
+/* 修复输入框滚动条样式 */
+.input-section textarea::-webkit-scrollbar {
+  width: 8px;
+}
+
+.input-section textarea::-webkit-scrollbar-track {
+  background: #2a2a2a;
+  border-radius: 4px;
+}
+
+.input-section textarea::-webkit-scrollbar-thumb {
+  background: #555;
+  border-radius: 4px;
+}
+
+.input-section textarea::-webkit-scrollbar-thumb:hover {
+  background: #666;
 }
 </style>
