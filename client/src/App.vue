@@ -186,8 +186,8 @@ const preprocessLatex = (text: string): string => {
     .replace(/\\dots/g, '\\ldots')
     .replace(/\\frac\{([^}]+)\}\{([^}]+)\}/g, '\\frac{$1}{$2}')
     // 确保下标和上标正确
-    .replace(/_(\w+)(?![{])/g, '_{$1}')
-    .replace(/\^(\w+)(?![{])/g, '^{$1}')
+    .replace(/_([\w\d]+)(?![{])/g, '_{$1}')
+    .replace(/\^([\w\d]+)(?![{])/g, '^{$1}')
     // 处理其他常见问题
     .replace(/\\geq/g, '\\geq ')
     .replace(/\\leq/g, '\\leq ')
@@ -207,6 +207,16 @@ const preprocessLatex = (text: string): string => {
     .replace(/\\ddots/g, '\\ddots ')
     // 集合符号
     .replace(/\\emptyset/g, '\\emptyset ')
+    .replace(/\\in/g, '\\in ')
+    // 添加新的处理规则
+    .replace(/([0-9]+)n/g, '$1n')
+    .replace(/n\^\{1\}\^\{([^}]+)\}/g, 'n^{$1}')
+    .replace(/n\^(\d+)/g, 'n^{$1}')
+    .replace(/x_(\d+)/g, 'x_{$1}')
+    .replace(/([<>])\s*-\\frac/g, '$1 -\\frac')
+    .replace(/\\frac(\{[^}]+\}\{[^}]+\})/g, '\\frac$1')
+    .replace(/\\times/g, '\\times ')
+    .replace(/\\Delta/g, '\\Delta ')
     .replace(/\\in/g, '\\in ')
     .replace(/\\notin/g, '\\notin ')
     .replace(/\\subset/g, '\\subset ')
